@@ -14,6 +14,8 @@ llm = ChatOpenAI(
     temperature=0.1,
 )
 
+## retriever
+
 cache_dir = LocalFileStore("./.cache/")
 
 splitter = CharacterTextSplitter.from_tiktoken_encoder(
@@ -21,15 +23,6 @@ splitter = CharacterTextSplitter.from_tiktoken_encoder(
     chunk_size=600,
     chunk_overlap=100,
 )
-
-memory = ConversationBufferMemory(return_message=True, memory_key="chat_history")
-
-memory.save_context({"input": ""}, {"output": ""})
-
-
-def load_memory(_):
-    return memory.load_memory_variables({})["chat_history"]
-
 
 loader = TextLoader("./files/input_text.txt")
 
@@ -43,6 +36,16 @@ vectorstore = FAISS.from_documents(docs, cached_embeddings)
 
 retriever = vectorstore.as_retriever()
 
+
+## memory
+
+memory = ConversationBufferMemory(return_message=True, memory_key="chat_history")
+
+
+def load_memory(_):
+    return memory.load_memory_variables({})["chat_history"]
+
+
 prompt = ChatPromptTemplate.from_messages(
     [
         (
@@ -54,7 +57,6 @@ prompt = ChatPromptTemplate.from_messages(
             {context}
             """,
         ),
-        MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{question}"),
     ]
 )
@@ -73,15 +75,21 @@ chain = (
 
 
 def chain_invoke(question):
-    result = chain.invoke({"question": question})
-    # print(result.content)
-    # memory.save_context({"input": question}, {"output": result.content})
+    result = chain.invoke(question)
     memory.save_context(
         {"input": question},
         {"output": result.content},
     )
+    print(result)
+    print("---")
 
 
 chain_invoke("Is Aaronson guilty?")
 chain_invoke("What message did he write in the table?")
 chain_invoke("Who is Julia?")
+
+print(load_memory(None))
+print(len(load_memory(None)))
+
+# result = chain.invoke("Is Aaronson guilty?")
+# print(result.content)
